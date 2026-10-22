@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1G Gold Wala – Private Admin Console</title>
+    <meta name="robots" content="noindex, nofollow">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f4f2; color: #10241b; margin: 0; padding: 14px; }
+        .box { max-width: 680px; margin: 0 auto 16px; background: #fff; border-radius: 14px; padding: 16px; border: 1px solid #dce6e1; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        h1, h2, h3 { color: #062c1b; margin-top: 0; }
+        .form-group { margin-bottom: 10px; }
+        label { display: block; font-size: 12px; font-weight: 700; color: #4a5d54; margin-bottom: 4px; }
+        .inp { width: 100%; padding: 10px; border: 1.5px solid #dce6e1; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn { border: none; border-radius: 8px; padding: 10px 14px; font-weight: 800; cursor: pointer; font-size: 13px; }
+        .btn-primary { background: #0f5132; color: #fff; width: 100%; }
+        .btn-outline { background: #e6f4ed; color: #0f5132; border: 1px solid #0f5132; }
+        .btn-danger { background: #ffebee; color: #c62828; border: 1px solid #c62828; }
+    </style>
+</head>
+<body>
+
+    <div id="loginBox" class="box" style="max-width:400px; margin-top:50px;">
+        <h2>🔐 1G Gold Wala – Admin Login</h2>
+        <div class="form-group">
+            <label>Admin Email</label>
+            <input type="email" id="admEmail" class="inp" placeholder="Email">
+        </div>
+        <div class="form-group">
+            <label>Admin Password / Secret Key</label>
+            <input type="password" id="admPass" class="inp" placeholder="Password">
+        </div>
+        <button class="btn btn-primary" onclick="doAdminLogin()">🔓 Login to Admin</button>
+    </div>
+
+    <div id="adminMain" style="display:none;">
+        <div class="box" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h2 style="margin:0;">👑 1G Gold Wala – Admin Panel</h2>
+                <small>सीधे वेबसाइट (1ggoldwala.in) पर आइटम और ऑर्डर मैनेज करें</small>
+            </div>
+            <a href="/" class="btn btn-outline" style="text-decoration:none;">🏠 वेबसाइट देखें</a>
+        </div>
+
+        <div class="box">
+            <h3 id="formTitle">➕ नया आइटम जोड़ें (Multi-Photo & Reel Video)</h3>
+            <input type="hidden" id="editId">
+            <div class="form-group">
+                <label>आइटम का नाम *</label>
+                <input type="text" id="pName" class="inp" placeholder="जैसे: 1G Gold Rajputi Bajuband">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>कैटेगरी *</label>
+                    <input type="text" id="pCat" class="inp" placeholder="बाजूबंद / इयररिंग्स / नेकलेस सेट">
+                </div>
+                <div class="form-group">
+                    <label>स्टॉक मात्रा (Qty) *</label>
+                    <input type="number" id="pQty" class="inp" value="5">
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>बिक्री रेट (Selling ₹) *</label>
+                    <input type="number" id="pSell" class="inp" placeholder="₹999">
+                </div>
+                <div class="form-group">
+                    <label>काटने वाला रेट (MRP ₹)</label>
+                    <input type="number" id="pMrp" class="inp" placeholder="₹1599">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>📸 1 से 3 फोटो चुनें (WebP में अपने आप कंप्रेस होगी)</label>
+                <input type="file" id="pPhotos" accept="image/*" multiple class="inp" onchange="handlePhotos(event)">
+                <div id="photoPreview" style="display:flex; gap:6px; margin-top:6px;"></div>
+            </div>
+            <div class="form-group">
+                <label>🎥 Instagram Reel या YouTube Video लिंक (वैकल्पिक)</label>
+                <input type="url" id="pVideo" class="inp" placeholder="https://www.instagram.com/reel/...">
+            </div>
+            <div class="form-group">
+                <label>📋 पूरा विवरण (मेटल, वजन, साइज, वारंटी)</label>
+                <textarea id="pDesc" class="inp" rows="3" placeholder="• बेस मेटल: कॉपर-ब्रास (1G गोल्ड पॉलिश)&#10;• वारंटी: 6 महीने"></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="saveProduct()">💾 वेबसाइट पर सेव और लाइव करें</button>
+        </div>
+
+        <div class="box">
+            <h3>📦 ग्राहकों के ऑर्डर (Confirm, Shipped & Tracking Link)</h3>
+            <div id="ordersList"></div>
+        </div>
+
+        <div class="box">
+            <h3>💍 वेबसाइट पर मौजूद आइटम</h3>
+            <div id="productsList"></div>
+        </div>
+    </div>
+
+    <script>
+        const FIREBASE_DB_URL = "https://ggoldwala-84104-default-rtdb.firebaseio.com";
+        let storeState = { products: [], categories: [], promo: {}, orders: [] };
+        let uploadedImgs = [];
+
+        async function doAdminLogin() {
+            const em = (document.getElementById("admEmail").value || "").trim().toLowerCase();
+            const pw = (document.getElementById("admPass").value || "").trim();
+            if (em === "redeemcode6622@gmail.com" && pw === "086590") {
+                document.getElementById("loginBox").style.display = "none";
+                document.getElementById("adminMain").style.display = "block";
+                await loadCloudData();
+            } else {
+                alert("गलत ईमेल या पासवर्ड!");
+            }
+        }
+
+        async function loadCloudData() {
+            const res = await fetch(FIREBASE_DB_URL + "/storeData.json");
+            if (res.ok) {
+                const data = await res.json();
+                if (data) storeState = Object.assign(storeState, data);
+            }
+            renderOrders();
+            renderProducts();
+        }
+
+        async function syncCloud() {
+            await fetch(FIREBASE_DB_URL + "/storeData.json", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(storeState)
+            });
+        }
+
+        function handlePhotos(e) {
+            const files = Array.from(e.target.files || []).slice(0, 3);
+            uploadedImgs = [];
+            const prev = document.getElementById("photoPreview");
+            prev.innerHTML = "";
+            files.forEach(f => {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const img = new Image();
+                    img.onload = function() {
+                        let w = img.width, h = img.height, max = 650;
+                        if (w > max || h > max) {
+                            if (w > h) { h = Math.round((h * max) / w); w = max; }
+                            else { w = Math.round((w * max) / h); h = max; }
+                        }
+                        const c = document.createElement("canvas");
+                        c.width = w; c.height = h;
+                        c.getContext("2d").drawImage(img, 0, 0, w, h);
+                        const webpData = c.toDataURL("image/webp", 0.8);
+                        uploadedImgs.push(webpData);
+                        const imEl = document.createElement("img");
+                        imEl.src = webpData;
+                        imEl.style = "width:55px;height:55px;object-fit:cover;border-radius:6px;";
+                        prev.appendChild(imEl);
+                    };
+                    img.src = ev.target.result;
+                };
+                reader.readAsDataURL(f);
+            });
+        }
+
+        async function saveProduct() {
+            const editId = document.getElementById("editId").value;
+            const name = document.getElementById("pName").value.trim();
+            const cat = document.getElementById("pCat").value.trim();
+            const sell = Number(document.getElementById("pSell").value);
+            const mrp = Number(document.getElementById("pMrp").value) || 0;
+            const qty = Number(document.getElementById("pQty").value) || 0;
+            const videoUrl = document.getElementById("pVideo").value.trim();
+            const desc = document.getElementById("pDesc").value.trim();
+
+            if (!name || !cat || !sell) { alert("नाम, कैटेगरी और बिक्री रेट ज़रूरी है!"); return; }
+            if (!Array.isArray(storeState.products)) storeState.products = [];
+
+            if (editId) {
+                const p = storeState.products.find(x => x.id == editId);
+                if (p) {
+                    p.name = name; p.category = cat; p.sellPrice = sell; p.mrpPrice = mrp;
+                    p.qty = qty; p.videoUrl = videoUrl; p.description = desc;
+                    if (uploadedImgs.length) p.images = uploadedImgs.slice();
+                }
+            } else {
+                storeState.products.unshift({
+                    id: Date.now(), name, category: cat, sellPrice: sell, mrpPrice: mrp,
+                    qty, isNew: true, images: uploadedImgs.length ? uploadedImgs.slice() : [],
+                    videoUrl, description: desc, reviews: []
+                });
+            }
+            await syncCloud();
+            document.getElementById("editId").value = "";
+            document.getElementById("pName").value = "";
+            alert("✅ आइटम सेव हो गया!");
+            renderProducts();
+        }
+
+        function renderProducts() {
+            const box = document.getElementById("productsList");
+            box.innerHTML = "";
+            (storeState.products || []).forEach(p => {
+                const d = document.createElement("div");
+                d.style = "display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #eee;";
+                d.innerHTML = `
+                    <div><b>${p.name}</b><br><small>${p.category} • ₹${p.sellPrice} • स्टॉक: ${p.qty}</small></div>
+                    <div style="display:flex; gap:6px;">
+                        <button class="btn btn-outline" onclick="editProd(${p.id})">✏️</button>
+                        <button class="btn btn-danger" onclick="delProd(${p.id})">🗑️</button>
+                    </div>
+                `;
+                box.appendChild(d);
+            });
+        }
+
+        function editProd(id) {
+            const p = storeState.products.find(x => x.id === id);
+            if (!p) return;
+            document.getElementById("editId").value = p.id;
+            document.getElementById("pName").value = p.name;
+            document.getElementById("pCat").value = p.category;
+            document.getElementById("pSell").value = p.sellPrice;
+            document.getElementById("pMrp").value = p.mrpPrice || "";
+            document.getElementById("pQty").value = p.qty;
+            document.getElementById("pVideo").value = p.videoUrl || "";
+            document.getElementById("pDesc").value = p.description || "";
+            window.scrollTo(0, 0);
+        }
+
+        async function delProd(id) {
+            if (!confirm("इस आइटम को हटाएं?")) return;
+            storeState.products = storeState.products.filter(x => x.id !== id);
+            await syncCloud();
+            renderProducts();
+        }
+
+        function renderOrders() {
+            const box = document.getElementById("ordersList");
+            box.innerHTML = "";
+            (storeState.orders || []).forEach(o => {
+                const items = (o.items || []).map(i => `${i.name} (${i.qty})`).join(", ");
+                const d = document.createElement("div");
+                d.style = "border:1px solid #dce6e1; border-radius:10px; padding:10px; margin-bottom:10px;";
+                d.innerHTML = `
+                    <b>#${o.orderId} • ${o.customer} (${o.phone})</b> | PIN: <b>${o.secretPin || '-'}</b><br>
+                    <small>📍 ${o.address}, ${o.cityState} - ${o.pincode}</small><br>
+                    <small>💍 ${items} | <b>₹${o.total} (${o.paymentMode})</b> ${o.utr ? 'UTR: '+o.utr : ''}</small>
+                    <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+                        <button class="btn btn-outline" onclick="updateOrd('${o.orderId}', 'Confirmed ✅')">✅ Confirm</button>
+                        <button class="btn btn-outline" onclick="shipOrd('${o.orderId}')">🚚 Add Tracking & Ship</button>
+                        <button class="btn btn-danger" onclick="delOrd('${o.orderId}')">🗑️</button>
+                    </div>
+                `;
+                box.appendChild(d);
+            });
+        }
+
+        async function updateOrd(id, st) {
+            const o = storeState.orders.find(x => x.orderId === id);
+            if (!o) return;
+            o.status = st;
+            await syncCloud();
+            renderOrders();
+            window.open(`https://wa.me/91${o.phone}?text=${encodeURIComponent("नमस्ते " + o.customer + ", आपका 1G Gold Wala ऑर्डर #" + o.orderId + " कन्फर्म हो गया है! 24-48 घंटे में डिस्पैच किया जाएगा।")}`, "_blank");
+        }
+
+        async function shipOrd(id) {
+            const o = storeState.orders.find(x => x.orderId === id);
+            if (!o) return;
+            const trk = prompt("Shiprocket / India Post का ट्रैकिंग लिंक या नंबर डालें:", o.trackingUrl || "");
+            o.status = "Shipped 🚚 (रास्ते में है)";
+            if (trk) o.trackingUrl = trk.trim();
+            await syncCloud();
+            renderOrders();
+            window.open(`https://wa.me/91${o.phone}?text=${encodeURIComponent("🚚 खुशखबरी! आपका 1G Gold Wala ऑर्डर #" + o.orderId + " डिस्पैच हो गया है। ट्रैकिंग: " + (o.trackingUrl || "4-7 कार्य दिवस में डिलीवर होगा।"))}`, "_blank");
+        }
+
+        async function delOrd(id) {
+            if (!confirm("ऑर्डर हटाएं?")) return;
+            storeState.orders = storeState.orders.filter(x => x.orderId !== id);
+            await syncCloud();
+            renderOrders();
+        }
+    </script>
+</body>
+</html>
